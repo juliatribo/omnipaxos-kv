@@ -1,0 +1,356 @@
+#worldcup:
+[[requests]]
+duration_sec = 2
+requests_per_sec = 10
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 11
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 12
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 13
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 19
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 24
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 32
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 36
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 38
+read_ratio = 0
+
+#########################################################
+#eecs:
+[[requests]]
+duration_sec = 2
+requests_per_sec = 10
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 20 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 10 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 16  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 13  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 15  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 12 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 11  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 16  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 11  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 10  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 25  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 27  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 32  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 37  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 28  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 36 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 38 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 36 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 27  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 35 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 27  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 25
+read_ratio = 0
+
+#########################################################
+#eccs above the clouds
+[[requests]]
+duration_sec = 3
+requests_per_sec = 10
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 12 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 10 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 14 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 10  
+read_ratio = 0
+
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 12  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 8 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 10  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 17  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 10
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 14  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 12  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 11
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 13 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 11  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 12
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 11
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 12
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 18
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 11 
+read_ratio = 0
+
+
+#########################################################
+#ebates
+[[requests]]
+duration_sec = 1
+requests_per_sec = 10
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 9
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 10 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 8
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 7 
+read_ratio = 0
+
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 8  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 7
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 6
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 7
+read_ratio = 0
+
+[[requests]]
+duration_sec = 3
+requests_per_sec = 8
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 7
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 6  
+read_ratio = 0
+
+[[requests]]
+duration_sec = 3
+requests_per_sec = 7
+read_ratio = 0
+
+[[requests]]
+duration_sec = 1
+requests_per_sec = 6 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 8 
+read_ratio = 0
+
+[[requests]]
+duration_sec = 2
+requests_per_sec = 9
+read_ratio = 0
+
+#########################################################
+#michael jackson
+[[requests]]
+duration_sec = 10
+requests_per_sec = 40
+read_ratio = 0
