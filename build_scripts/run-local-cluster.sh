@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage="Usage: run-local-cluster.sh"
-cluster_size=3
+cluster_size=5
 rust_log="info"
 
 # Clean up child processes
