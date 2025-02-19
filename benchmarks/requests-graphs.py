@@ -44,9 +44,9 @@ def plot_files(path, output_folder):
         plot_workload_volume(data, output_folder, str(i+1))
 
 def main():
-    folder_path = "./logs/local-run/"
+    folder_path = "../build_scripts/logs/"
     file_pattern = "client-*.csv"
-    output_folder = "logs/local-run/graphs"
+    output_folder = "../build_scripts/logs/graphs"
 
     plot_files(folder_path + file_pattern, output_folder)
 

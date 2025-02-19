@@ -1,10 +1,6 @@
 location = "local-5"
 server_id = 5
-num_clients = 5 # Hardcoded number of client connections to wait for
-output_filepath = "../benchmarks/logs/local-run/server-5.json"
-# Cluster-wide settings
-local_deployment = true # use localhost
-cluster_name = "local-cluster"
-nodes = [1, 2, 3, 4, 5]
-initial_leader = 1
-#initial_flexible_quorum = { read_quorum_size = 3, write_quorum_size = 3 }
+num_clients = 0 # Hardcoded number of client connections to wait for
+listen_address = "127.0.0.1"
+listen_port = 8005
+output_filepath = "./logs/server-5.json"
