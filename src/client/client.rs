@@ -62,6 +62,31 @@ impl Client {
         let mut next_interval = interval(first_interval.get_interval_duration());
         let _ = next_interval.tick().await;
 
+        let killed_links_req = match self.config.kill_links_requests.clone(){
+            Some(links) => links,
+            None => vec![]
+        };
+        let mut killed_links_iter= killed_links_req.iter();
+        let mut killed_interval =  interval(Duration::from_secs(999999));
+        let mut killed_links = killed_links_iter.next();
+        if let Some(links) = killed_links {
+            killed_interval = interval(links.get_duration_till_trigger());
+            let _ = killed_interval.tick().await;
+        }
+
+        let disconnected_nodes_req = match self.config.disconnect_nodes_requests.clone(){
+            Some(nodes) => nodes,
+            None => vec![]
+        };
+        let mut disconnected_nodes_iter= disconnected_nodes_req.iter();
+        let mut disconnected_interval =  interval(Duration::from_secs(999999));
+        let mut disconnected_nodes = disconnected_nodes_iter.next();
+        if let Some(nodes) = disconnected_nodes{
+            disconnected_interval = interval(nodes.get_duration_till_trigger());
+            let _ = disconnected_interval.tick().await;
+        }
+    
+
         // Main event loop
         info!("{}: Starting requests", self.id);
         loop {
@@ -93,6 +118,34 @@ impl Client {
                         },
                     }
                 },
+                _ = killed_interval.tick() => {
+                    if let Some(links) = killed_links {
+                        self.send_kill_links(links.clone().links).await;
+                    }
+        
+                    if let Some(next_killed_links) = killed_links_iter.next() {
+                        killed_interval = interval(next_killed_links.get_duration_till_trigger());
+                        let _ = killed_interval.tick().await;
+                        killed_links = Some(next_killed_links);
+                    }
+                    else{
+                        killed_links = None;
+                    }
+                }
+                _ = disconnected_interval.tick() => {
+                    if let Some(nodes) = disconnected_nodes {
+                        self.send_disconnect_nodes(nodes.clone().nodes).await;
+                    }
+        
+                    if let Some(next_disconnected_nodes) = disconnected_nodes_iter.next() {
+                        disconnected_interval = interval(next_disconnected_nodes.get_duration_till_trigger());
+                        let _ = disconnected_interval.tick().await;
+                        disconnected_nodes = Some(next_disconnected_nodes);
+                    }
+                    else{
+                        disconnected_nodes = None;
+                    }
+                }
             }
         }
 
@@ -127,6 +180,20 @@ impl Client {
         self.network.send(self.active_server, request).await;
         self.client_data.new_request(is_write);
         self.next_request_id += 1;
+    }
+    async fn send_kill_links(&mut self, links : Vec<(NodeId, NodeId)>) {
+        for link in links {
+            let request = ClientMessage::KillLink(link.0, link.1);
+            debug!("Sending {request:?}");
+            self.network.send(self.active_server, request).await;
+        }
+    }
+    async fn send_disconnect_nodes(&mut self, nodes : Vec<NodeId>) {
+        for node in nodes {
+            let request = ClientMessage::DisconnectNode(node);
+            debug!("Sending {request:?}");
+            self.network.send(self.active_server, request).await;
+        }
     }
 
     fn run_finished(&self) -> bool {

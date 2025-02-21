@@ -2,9 +2,7 @@ use crate::{configs::OmniPaxosKVConfig, database::Database, network::Network};
 use chrono::Utc;
 use log::*;
 use omnipaxos::{
-    messages::Message,
-    util::{LogEntry, NodeId},
-    OmniPaxos, OmniPaxosConfig,
+    messages::Message, storage, util::{LogEntry, NodeId}, OmniPaxos, OmniPaxosConfig
 };
 use omnipaxos_kv::common::{kv::*, messages::*, utils::Timestamp};
 use omnipaxos_storage::memory_storage::MemoryStorage;
@@ -162,6 +160,26 @@ impl OmniPaxosServer {
                 ClientMessage::Append(command_id, kv_command) => {
                     self.append_to_log(from, command_id, kv_command)
                 }
+                ClientMessage::DisconnectNode(node) => {
+                    if self.id == node {
+                        debug!("Received disconnect message from client {from}");
+                        self.disconnect_node();
+                    }
+                    else{
+                        debug!("Forwarding disconnect message to peer {node}");
+                        self.network.send_to_cluster(node, ClusterMessage::Disconnect());
+                    }
+                }
+                ClientMessage::KillLink(from,to,) => {
+                    if self.id == from || self.id == to {
+                        debug!("Received kill link message from client {from}");
+                        self.kill_link(to);
+                    }
+                    else{
+                        debug!("Forwarding kill link message to peer {to}");
+                        self.network.send_to_cluster(to, ClusterMessage::KillLink(from));
+                    }
+                }
             }
         }
         self.send_outgoing_msgs();
@@ -184,6 +202,14 @@ impl OmniPaxosServer {
                     received_start_signal = true;
                     self.send_client_start_signals(start_time);
                 }
+                ClusterMessage::Disconnect() =>{
+                    debug!("Received disconnect message from peer {from}");
+                    self.disconnect_node();
+                }
+                ClusterMessage::KillLink(to) =>{
+                    debug!("Received kill link message from peer {from}");
+                    self.kill_link(to);
+                }
             }
         }
         self.send_outgoing_msgs();
@@ -202,6 +228,18 @@ impl OmniPaxosServer {
             .expect("Append to Omnipaxos log failed");
     }
 
+    
+    fn disconnect_node(&mut self) {
+        self.network.disconnect();
+        debug!("Node {} disconnected", self.id);
+    }
+
+    fn kill_link(&mut self, to: NodeId) {
+        self.network.kill_link(to, self.id);
+        self.network.kill_link( self.id, to);
+        debug!("Link {}<->{} killed", self.id, to);
+    }
+    
     fn send_cluster_start_signals(&mut self, start_time: Timestamp) {
         for peer in &self.peers {
             debug!("Sending start message to peer {peer}");

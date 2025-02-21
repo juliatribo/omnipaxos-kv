@@ -285,6 +285,32 @@ impl Network {
         }
     }
 
+    // Removes all peer connections
+    pub fn disconnect(&mut self) {
+        for peer_connection in self.peer_connections.drain(..) {
+            if let Some(connection) = peer_connection {
+                connection.close();
+            }
+        }
+        for _ in 0..self.peers.len() {
+            self.peer_connections.push(None);
+        }
+    }
+
+    // Kills the connection to a specific node
+    pub fn kill_link(&mut self, to: NodeId, server_id: NodeId) {
+        match self.cluster_id_to_idx(to) {
+            Some(idx) => {
+                if let Some(connection) = self.peer_connections[idx].take() {
+                    connection.close();
+                } else {
+                    warn!("{server_id}: Not connected to node {to}");
+                }
+            }
+            None => error!("Sending to unexpected node {to}"),
+        }
+    }
+
     #[inline]
     fn cluster_id_to_idx(&self, id: NodeId) -> Option<usize> {
         self.peers.iter().position(|&p| p == id)

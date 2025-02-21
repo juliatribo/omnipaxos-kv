@@ -17,11 +17,15 @@ pub mod messages {
     pub enum ClusterMessage {
         OmniPaxosMessage(OmniPaxosMessage<Command>),
         LeaderStartSignal(Timestamp),
+        Disconnect(),
+        KillLink(NodeId),
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
     pub enum ClientMessage {
         Append(CommandId, KVCommand),
+        DisconnectNode(NodeId),
+        KillLink(NodeId,NodeId),
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]

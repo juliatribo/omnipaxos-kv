@@ -13,6 +13,8 @@ pub struct ClientConfig {
     pub sync_time: Option<Timestamp>,
     pub summary_filepath: String,
     pub output_filepath: String,
+    pub kill_links_requests: Option<Vec<KilledLinks>>,
+    pub disconnect_nodes_requests: Option<Vec<DisconnectedNodes>>,
 }
 
 impl ClientConfig {
@@ -53,5 +55,28 @@ impl RequestInterval {
         let delay_ms = 1000 / self.requests_per_sec;
         assert!(delay_ms != 0);
         Duration::from_millis(delay_ms)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct KilledLinks {
+    pub trigger_sec: u64,
+    pub links: Vec<(NodeId,NodeId)>,
+}
+
+impl KilledLinks {
+    pub fn get_duration_till_trigger(&self) -> Duration {
+        Duration::from_secs(self.trigger_sec)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DisconnectedNodes {
+    pub trigger_sec: u64,
+    pub nodes: Vec<NodeId>,
+}
+impl DisconnectedNodes {
+    pub fn get_duration_till_trigger(&self) -> Duration {
+        Duration::from_secs(self.trigger_sec)
     }
 }
