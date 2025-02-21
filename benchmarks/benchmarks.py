@@ -111,7 +111,9 @@ def different_workloads(workload:int) -> list[RequestInterval]:
 
 def example_benchmark():
     # Define workload and cluster
-    # workload = example_workload()
+    # # workload = example_workload()
+    workload = different_workloads(0)
+
     workload = different_workloads(0)
 
     cluster = (
