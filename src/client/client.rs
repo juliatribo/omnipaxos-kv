@@ -16,6 +16,7 @@ pub struct Client {
     active_server: NodeId,
     final_request_count: Option<usize>,
     next_request_id: usize,
+    is_server_active: bool,
 }
 
 impl Client {
@@ -33,6 +34,7 @@ impl Client {
             config,
             final_request_count: None,
             next_request_id: 0,
+            is_server_active: true,
         }
     }
 
@@ -64,7 +66,7 @@ impl Client {
 
         let killed_links_req = match self.config.kill_links_requests.clone(){
             Some(links) => links,
-            None => vec![]
+            None => Vec::with_capacity(10000),
         };
         let mut killed_links_iter= killed_links_req.iter();
         let mut killed_interval =  interval(Duration::from_secs(999999));
@@ -74,18 +76,41 @@ impl Client {
             let _ = killed_interval.tick().await;
         }
 
-        let disconnected_nodes_req = match self.config.disconnect_nodes_requests.clone(){
+        let disconnected_node_req = match self.config.disconnect_node_requests.clone(){
             Some(nodes) => nodes,
-            None => vec![]
+            None => Vec::with_capacity(10000),
         };
-        let mut disconnected_nodes_iter= disconnected_nodes_req.iter();
+        let mut disconnected_node_iter= disconnected_node_req.iter();
         let mut disconnected_interval =  interval(Duration::from_secs(999999));
-        let mut disconnected_nodes = disconnected_nodes_iter.next();
-        if let Some(nodes) = disconnected_nodes{
-            disconnected_interval = interval(nodes.get_duration_till_trigger());
+        let mut disconnected_node = disconnected_node_iter.next();
+        if let Some(node) = disconnected_node{
+            disconnected_interval = interval(node.get_duration_till_trigger());
             let _ = disconnected_interval.tick().await;
         }
-    
+
+        let connected_links_req = match self.config.connect_links_requests.clone() {
+            Some(links) => links,
+            None => Vec::with_capacity(10000),
+        };
+        let mut connected_links_iter = connected_links_req.iter();
+        let mut connect_links_interval = interval(Duration::from_secs(999999));
+        let mut connected_links = connected_links_iter.next();
+        if let Some(links) = connected_links {
+            connect_links_interval = interval(links.get_duration_till_trigger());
+            let _ = connect_links_interval.tick().await;
+        }
+
+        let connected_node_req = match self.config.connect_node_requests.clone(){
+            Some(nodes) => nodes,
+            None => Vec::with_capacity(10000),
+        };
+        let mut connected_node_iter= connected_node_req.iter();
+        let mut connect_node_interval =  interval(Duration::from_secs(999999));
+        let mut connected_node = connected_node_iter.next();
+        if let Some(node) = connected_node{
+            connect_node_interval = interval(node.get_duration_till_trigger());
+            let _ = connect_node_interval.tick().await;
+        }
 
         // Main event loop
         info!("{}: Starting requests", self.id);
@@ -99,8 +124,10 @@ impl Client {
                     }
                 }
                 _ = request_interval.tick(), if self.final_request_count.is_none() => {
-                    let is_write = rng.gen::<f64>() > read_ratio;
-                    self.send_request(is_write).await;
+                    if self.is_server_active {
+                        let is_write = rng.gen::<f64>() > read_ratio;
+                        self.send_request(is_write).await;
+                    }
                 },
                 _ = next_interval.tick() => {
                     match intervals.next() {
@@ -122,7 +149,7 @@ impl Client {
                     if let Some(links) = killed_links {
                         self.send_kill_links(links.clone().links).await;
                     }
-        
+
                     if let Some(next_killed_links) = killed_links_iter.next() {
                         killed_interval = interval(next_killed_links.get_duration_till_trigger());
                         let _ = killed_interval.tick().await;
@@ -133,17 +160,45 @@ impl Client {
                     }
                 }
                 _ = disconnected_interval.tick() => {
-                    if let Some(nodes) = disconnected_nodes {
-                        self.send_disconnect_nodes(nodes.clone().nodes).await;
+                    if let Some(_) = disconnected_node {
+                        self.send_disconnect_node().await;
                     }
-        
-                    if let Some(next_disconnected_nodes) = disconnected_nodes_iter.next() {
-                        disconnected_interval = interval(next_disconnected_nodes.get_duration_till_trigger());
+
+                    if let Some(next_disconnected_node) = disconnected_node_iter.next() {
+                        disconnected_interval = interval(next_disconnected_node.get_duration_till_trigger());
                         let _ = disconnected_interval.tick().await;
-                        disconnected_nodes = Some(next_disconnected_nodes);
+                        disconnected_node = Some(next_disconnected_node);
                     }
                     else{
-                        disconnected_nodes = None;
+                        disconnected_node = None;
+                    }
+                }
+                _ = connect_links_interval.tick() => {
+                    if let Some(links) = connected_links {
+                        self.send_connect_links(links.clone().links).await;
+                    }
+
+                    if let Some(next_connected_links) = connected_links_iter.next() {
+                        connect_links_interval = interval(next_connected_links.get_duration_till_trigger());
+                        let _ = connect_links_interval.tick().await;
+                        connected_links = Some(next_connected_links);
+                    }
+                    else{
+                        connected_links = None;
+                    }
+                }
+                _ = connect_node_interval.tick() => {
+                    if let Some(_) = connected_node {
+                        self.send_connect_node().await;
+                    }
+
+                    if let Some(next_connected_node) = connected_node_iter.next() {
+                        connect_node_interval = interval(next_connected_node.get_duration_till_trigger());
+                        let _ = connect_node_interval.tick().await;
+                        connected_node = Some(next_connected_node);
+                    }
+                    else{
+                        connected_node = None;
                     }
                 }
             }
@@ -181,21 +236,32 @@ impl Client {
         self.client_data.new_request(is_write);
         self.next_request_id += 1;
     }
-    async fn send_kill_links(&mut self, links : Vec<(NodeId, NodeId)>) {
+    async fn send_kill_links(&mut self, links : Vec<NodeId>) {
         for link in links {
-            let request = ClientMessage::KillLink(link.0, link.1);
+            let request = ClientMessage::KillLink(link);
             debug!("Sending {request:?}");
             self.network.send(self.active_server, request).await;
         }
     }
-    async fn send_disconnect_nodes(&mut self, nodes : Vec<NodeId>) {
-        for node in nodes {
-            let request = ClientMessage::DisconnectNode(node);
+    async fn send_disconnect_node(&mut self) {
+        let request = ClientMessage::DisconnectNode();
+        debug!("Sending {request:?}");
+        self.network.send(self.active_server, request).await;
+        self.is_server_active = false;
+    }
+    async fn send_connect_links(&mut self, links: Vec<NodeId>) {
+        for link in links {
+            let request = ClientMessage::ConnectLink(link);
             debug!("Sending {request:?}");
             self.network.send(self.active_server, request).await;
         }
     }
-
+    async fn send_connect_node(&mut self) {
+        let request = ClientMessage::ConnectNode();
+        debug!("Sending {request:?}");
+        self.network.send(self.active_server, request).await;
+        self.is_server_active = true;
+    }
     fn run_finished(&self) -> bool {
         if let Some(count) = self.final_request_count {
             if self.client_data.request_count() >= count {

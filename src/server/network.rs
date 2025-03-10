@@ -63,14 +63,16 @@ impl Network {
             .zip(node_addresses.into_iter())
             .filter(|(node_id, _addr)| *node_id != id)
             .collect();
-        let mut cluster_connections = vec![];
-        cluster_connections.resize_with(peer_addresses.len(), Default::default);
+        let cluster_connections: Vec<Option<PeerConnection>> = (0..peer_addresses.len())
+            .map(|_| Default::default())
+            .collect();
+        //cluster_connections.resize_with(peer_addresses.len(), Default::default);
         let (cluster_message_sender, cluster_messages) = tokio::sync::mpsc::channel(batch_size);
         let (client_message_sender, client_messages) = tokio::sync::mpsc::channel(batch_size);
         let mut network = Self {
             peers: peer_addresses.iter().map(|(id, _)| *id).collect(),
             peer_connections: cluster_connections,
-            client_connections: HashMap::new(),
+            client_connections: HashMap::with_capacity(10000),
             max_client_id: Arc::new(Mutex::new(0)),
             batch_size,
             client_message_sender,
@@ -246,9 +248,11 @@ impl Network {
         match self.cluster_id_to_idx(to) {
             Some(idx) => match &mut self.peer_connections[idx] {
                 Some(ref mut connection) => {
-                    if let Err(err) = connection.send(msg) {
-                        warn!("Couldn't send msg to peer {to}: {err}");
-                        self.peer_connections[idx] = None;
+                    if connection.is_active {
+                        if let Err(err) = connection.send(msg) {
+                            warn!("Couldn't send msg to peer {to}: {err}");
+                            self.peer_connections[idx] = None;
+                        }
                     }
                 }
                 None => warn!("Not connected to node {to}"),
@@ -260,9 +264,11 @@ impl Network {
     pub fn send_to_client(&mut self, to: ClientId, msg: ServerMessage) {
         match self.client_connections.get_mut(&to) {
             Some(connection) => {
-                if let Err(err) = connection.send(msg) {
-                    warn!("Couldn't send msg to client {to}: {err}");
-                    self.client_connections.remove(&to);
+                if connection.is_active {
+                    if let Err(err) = connection.send(msg) {
+                        warn!("Couldn't send msg to client {to}: {err}");
+                        self.client_connections.remove(&to);
+                    }
                 }
             }
             None => warn!("Not connected to client {to}"),
@@ -275,34 +281,57 @@ impl Network {
         for (_, client_connection) in self.client_connections.drain() {
             client_connection.close();
         }
-        for peer_connection in self.peer_connections.drain(..) {
-            if let Some(connection) = peer_connection {
+        for peer_connection in self.peer_connections.iter_mut() {
+            if let Some(connection) = peer_connection.take() {
                 connection.close();
             }
         }
-        for _ in 0..self.peers.len() {
-            self.peer_connections.push(None);
+    }
+      
+    // Removes all peer connections
+    pub fn disconnect(&mut self) {
+        for peer_connection in &mut self.peer_connections {
+            if let Some(ref mut connection) = peer_connection {
+                connection.is_active = false;
+            }
+        }
+        for client_connection in &mut self.client_connections {
+            client_connection.1.is_active = false;
         }
     }
 
-    // Removes all peer connections
-    pub fn disconnect(&mut self) {
-        for peer_connection in self.peer_connections.drain(..) {
-            if let Some(connection) = peer_connection {
-                connection.close();
+    pub fn connect(&mut self) {
+        for peer_connection in &mut self.peer_connections {
+            if let Some(ref mut connection) = peer_connection {
+                connection.is_active = true;
             }
         }
-        for _ in 0..self.peers.len() {
-            self.peer_connections.push(None);
+        for client_connection in &mut self.client_connections {
+            client_connection.1.is_active = true;
         }
     }
+
 
     // Kills the connection to a specific node
     pub fn kill_link(&mut self, to: NodeId, server_id: NodeId) {
         match self.cluster_id_to_idx(to) {
             Some(idx) => {
-                if let Some(connection) = self.peer_connections[idx].take() {
-                    connection.close();
+                if let Some(connection) = &mut self.peer_connections[idx] {
+                    connection.is_active = false;
+                } else {
+                    warn!("{server_id}: Not connected to node {to}");
+                }
+            }
+            None => error!("Sending to unexpected node {to}"),
+        }
+    }
+    
+
+    pub fn connect_link(&mut self, to: NodeId, server_id: NodeId) {
+        match self.cluster_id_to_idx(to) {
+            Some(idx) => {
+                if let Some(connection) = &mut self.peer_connections[idx] {
+                    connection.is_active = true;
                 } else {
                     warn!("{server_id}: Not connected to node {to}");
                 }
@@ -327,6 +356,7 @@ struct PeerConnection {
     reader_task: JoinHandle<()>,
     writer_task: JoinHandle<()>,
     outgoing_messages: UnboundedSender<ClusterMessage>,
+    is_active: bool,
 }
 
 impl PeerConnection {
@@ -378,6 +408,7 @@ impl PeerConnection {
             reader_task,
             writer_task,
             outgoing_messages: message_tx,
+            is_active: true,
         }
     }
 
@@ -399,6 +430,7 @@ struct ClientConnection {
     reader_task: JoinHandle<()>,
     writer_task: JoinHandle<()>,
     outgoing_messages: UnboundedSender<ServerMessage>,
+    is_active: bool,
 }
 
 impl ClientConnection {
@@ -445,6 +477,7 @@ impl ClientConnection {
             reader_task,
             writer_task,
             outgoing_messages: message_tx,
+            is_active: true,
         }
     }
 

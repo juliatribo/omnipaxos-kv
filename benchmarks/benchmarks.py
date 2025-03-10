@@ -114,8 +114,6 @@ def example_benchmark():
     # # workload = example_workload()
     workload = different_workloads(0)
 
-    workload = different_workloads(0)
-
     cluster = (
         OmnipaxosClusterBuilder(1)
         .initial_leader(5)

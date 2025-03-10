@@ -14,7 +14,9 @@ pub struct ClientConfig {
     pub summary_filepath: String,
     pub output_filepath: String,
     pub kill_links_requests: Option<Vec<KilledLinks>>,
-    pub disconnect_nodes_requests: Option<Vec<DisconnectedNodes>>,
+    pub disconnect_node_requests: Option<Vec<DisconnectedNode>>,
+    pub connect_links_requests: Option<Vec<ConnectedLinks>>,
+    pub connect_node_requests: Option<Vec<ConnectedNode>>,
 }
 
 impl ClientConfig {
@@ -61,7 +63,7 @@ impl RequestInterval {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KilledLinks {
     pub trigger_sec: u64,
-    pub links: Vec<(NodeId,NodeId)>,
+    pub links: Vec<NodeId>,
 }
 
 impl KilledLinks {
@@ -71,11 +73,31 @@ impl KilledLinks {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DisconnectedNodes {
+pub struct DisconnectedNode {
     pub trigger_sec: u64,
-    pub nodes: Vec<NodeId>,
 }
-impl DisconnectedNodes {
+impl DisconnectedNode {
+    pub fn get_duration_till_trigger(&self) -> Duration {
+        Duration::from_secs(self.trigger_sec)
+    }
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConnectedNode {
+    pub trigger_sec: u64,
+}
+impl ConnectedNode {
+    pub fn get_duration_till_trigger(&self) -> Duration {
+        Duration::from_secs(self.trigger_sec)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConnectedLinks {
+    pub trigger_sec: u64,
+    pub links: Vec<NodeId>,
+}
+
+impl ConnectedLinks {
     pub fn get_duration_till_trigger(&self) -> Duration {
         Duration::from_secs(self.trigger_sec)
     }

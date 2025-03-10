@@ -7,7 +7,7 @@ pub struct Database {
 
 impl Database {
     pub fn new() -> Self {
-        Self { db: HashMap::new() }
+        Self { db: HashMap::with_capacity(10000) }
     }
 
     pub fn handle_command(&mut self, command: KVCommand) -> Option<Option<String>> {

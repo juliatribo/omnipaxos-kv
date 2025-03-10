@@ -17,15 +17,17 @@ pub mod messages {
     pub enum ClusterMessage {
         OmniPaxosMessage(OmniPaxosMessage<Command>),
         LeaderStartSignal(Timestamp),
-        Disconnect(),
-        KillLink(NodeId),
+        KillLink(),
+        ConnectLink(),
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
     pub enum ClientMessage {
         Append(CommandId, KVCommand),
-        DisconnectNode(NodeId),
-        KillLink(NodeId,NodeId),
+        DisconnectNode(),
+        KillLink(NodeId),
+        ConnectLink(NodeId),
+        ConnectNode(),
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -79,8 +81,8 @@ pub mod kv {
 
     impl Snapshot<Command> for KVSnapshot {
         fn create(entries: &[Command]) -> Self {
-            let mut snapshotted = HashMap::new();
-            let mut deleted_keys: Vec<String> = Vec::new();
+            let mut snapshotted = HashMap::with_capacity(10000);
+            let mut deleted_keys: Vec<String> = Vec::with_capacity(10000);
             for e in entries {
                 match &e.kv_cmd {
                     KVCommand::Put(key, value) => {

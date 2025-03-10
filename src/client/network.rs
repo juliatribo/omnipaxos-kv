@@ -19,9 +19,11 @@ const RETRY_SERVER_CONNECTION_TIMEOUT: Duration = Duration::from_secs(1);
 
 impl Network {
     pub async fn new(servers: Vec<(NodeId, String)>, batch_size: usize) -> Self {
-        let mut server_connections = vec![];
         let max_server_id = *servers.iter().map(|(id, _)| id).max().unwrap() as usize;
-        server_connections.resize_with(max_server_id + 1, Default::default);
+        //server_connections.resize_with(max_server_id + 1, Default::default);
+        let server_connections: Vec<_> = (0..=max_server_id)
+            .map(|_| Default::default())
+            .collect();
         let (server_message_sender, server_messages) = channel(batch_size);
         let mut network = Self {
             server_connections,

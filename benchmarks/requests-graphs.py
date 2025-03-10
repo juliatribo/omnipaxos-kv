@@ -1,56 +1,60 @@
-from pathlib import Path
-import glob
 import pandas as pd
 import matplotlib.pyplot as plt
-from datetime import datetime
 import os
+import matplotlib.dates as mdates
 
+file_names = ['../build_scripts/logs/client-1.csv', '../build_scripts/logs/client-2.csv', '../build_scripts/logs/client-3.csv', '../build_scripts/logs/client-4.csv', '../build_scripts/logs/client-5.csv','../build_scripts/logs/client-6.csv','../build_scripts/logs/client-7.csv']
+dfs = []
 
+for file_name in file_names:
+    try:
+        if os.path.exists(file_name):
+            df = pd.read_csv(file_name)
+            df['request_time'] = pd.to_datetime(df['request_time'], unit='ms')
+            df['response_time'] = pd.to_datetime(df['response_time'], unit='ms')
+            dfs.append(df)
+        else:
+            print(f"File not found: {file_name}")
+    except Exception as e:
+        print(f"Error reading {file_name}: {e}")
 
-def plot_workload_volume(df: pd.DataFrame, output_folder: str, filename: str):
-    # Process the request times and response times
-    df_req = pd.DataFrame()
-    df_req["req_second"] = df['request_time'] // 1000
-    df_req = df_req.iloc[1:-1]
-    beginning_spike = df_req.groupby("req_second").size().iloc[0]
+combined_df = pd.concat(dfs, ignore_index=True)
 
-    df_req = df_req.groupby("req_second").size() / beginning_spike
-    df_req.index = df_req.index.map(lambda x: datetime.fromtimestamp(x).strftime('%H:%M:%S'))
+combined_df['latency'] = (combined_df['response_time'] - combined_df['request_time']).dt.total_seconds() * 1000
 
-    df_resp = pd.DataFrame()
-    df_resp["rep_second"] = df['response_time'] // 1000
-    df_resp = df_resp.iloc[1:-1]
-    df_resp = df_resp.groupby("rep_second").size() / beginning_spike
-    df_resp.index = df_resp.index.map(lambda x: datetime.fromtimestamp(x).strftime('%H:%M:%S'))
+requests_per_second = combined_df.set_index('request_time').resample('1s').size()
+responses_per_second = combined_df.set_index('response_time').resample('1s').size()
 
-    os.makedirs(output_folder, exist_ok=True)
-    plt.figure(figsize=(10, 8))
-    plt.plot(df_req.index, df_req, label='Requests')
-    plt.plot(df_resp.index, df_resp, label='Replies')
-    plt.xticks(rotation=45)
-    plt.xlabel("Time (HH:MM:SS)")
-    plt.ylabel("Relative Workload")
-    plt.title(f"Workload Volume for Client {filename} Normalized to the Start of the Spike")
-    plt.legend()
+latest_request_time = combined_df['request_time'].max()
 
-    plt.savefig(os.path.join(output_folder, f'Client_{Path(filename).stem}_workload.png'))
-    plt.show()
-    plt.close()
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
 
-def plot_files(path, output_folder):
-    files = glob.glob(path)
-    for i, file in enumerate(files):
-        data = pd.read_csv(file)
-        plot_workload_volume(data, output_folder, str(i+1))
+ax1.plot(combined_df['request_time'], combined_df['latency'])
+ax1.set_ylabel('Latency (ms)')
+ax1.set_title('Latency and Requests/Responses per Second')
+ax1.grid(True)
 
-def main():
-    folder_path = "../build_scripts/logs/"
-    file_pattern = "client-*.csv"
-    output_folder = "../build_scripts/logs/graphs"
+ax2.plot(requests_per_second.index, requests_per_second.values, marker='.', label='Requests')
+ax2.plot(responses_per_second.index, responses_per_second.values, marker='.', label='Responses')
+ax2.set_xlabel('Time (seconds)')
+ax2.set_ylabel('Requests/Responses per Second')
+ax2.grid(True)
+ax2.legend()
 
-    plot_files(folder_path + file_pattern, output_folder)
+ax1.set_xlim(left=combined_df['request_time'].min(), right=latest_request_time)
+ax2.set_xlim(left=combined_df['request_time'].min(), right=latest_request_time)
 
+ax1.xaxis.set_major_locator(mdates.SecondLocator(interval=10))
+ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+ax2.xaxis.set_major_locator(mdates.SecondLocator(interval=10))
+ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
 
+plt.xticks(rotation=45)
 
-if __name__ == "__main__":
-    main()
+# Improve layout and show the plot
+plt.tight_layout()
+output_dir = "../build_scripts/logs/graphs"
+os.makedirs(output_dir, exist_ok=True)
+output_path = os.path.join(output_dir, "combined_workload.png")
+plt.savefig(output_path)
+plt.show()

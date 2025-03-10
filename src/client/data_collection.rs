@@ -22,7 +22,7 @@ pub struct ClientData {
 impl ClientData {
     pub fn new() -> Self {
         ClientData {
-            request_data: Vec::new(),
+            request_data: Vec::with_capacity(10000),
             response_count: 0,
         }
     }

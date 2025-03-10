@@ -1,8 +1,8 @@
-location = "local-1"
-server_id = 1 # the server to connect to
-server_address = "127.0.0.1:8001"
-summary_filepath = "./logs/client-1.json"
-output_filepath = "./logs/client-1.csv"
+location = "local-6"
+server_id = 6 # the server to connect to
+server_address = "127.0.0.1:8006"
+summary_filepath = "./logs/client-6.json"
+output_filepath = "./logs/client-6.csv"
 
 # Defining TOML vector of (duration_sec, requests_per_sec, read_ratio) which determines the behavior of the client requests
 [[requests]]
@@ -14,3 +14,6 @@ read_ratio = 0
 duration_sec = 45
 requests_per_sec = 100
 read_ratio = 0
+
+[[disconnect_node_requests]]
+trigger_sec = 20

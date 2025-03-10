@@ -160,25 +160,21 @@ impl OmniPaxosServer {
                 ClientMessage::Append(command_id, kv_command) => {
                     self.append_to_log(from, command_id, kv_command)
                 }
-                ClientMessage::DisconnectNode(node) => {
-                    if self.id == node {
-                        debug!("Received disconnect message from client {from}");
-                        self.disconnect_node();
-                    }
-                    else{
-                        debug!("Forwarding disconnect message to peer {node}");
-                        self.network.send_to_cluster(node, ClusterMessage::Disconnect());
-                    }
+                ClientMessage::DisconnectNode() => {
+                    debug!("S{}: Received disconnect message from client", self.id);
+                    self.disconnect_node();
                 }
-                ClientMessage::KillLink(from,to,) => {
-                    if self.id == from || self.id == to {
-                        debug!("Received kill link message from client {from}");
-                        self.kill_link(to);
-                    }
-                    else{
-                        debug!("Forwarding kill link message to peer {to}");
-                        self.network.send_to_cluster(to, ClusterMessage::KillLink(from));
-                    }
+                ClientMessage::KillLink(to) => {
+                    debug!("S{}: Received kill link {}->{to} message from client", self.id, self.id);
+                    self.kill_link(to);
+                }
+                ClientMessage::ConnectLink(to) => {
+                    debug!("S{}: Received connect link {}->{to} message from client", self.id, self.id);
+                    self.connect_link(to);
+                }
+                ClientMessage::ConnectNode() => {
+                    debug!("S{}: Received connect message from client", self.id);
+                    self.connect_node();
                 }
             }
         }
@@ -191,24 +187,24 @@ impl OmniPaxosServer {
     ) -> bool {
         let mut received_start_signal = false;
         for (from, message) in messages.drain(..) {
-            trace!("{}: Received {message:?}", self.id);
+            trace!("S{}: Received {message:?}", self.id);
             match message {
                 ClusterMessage::OmniPaxosMessage(m) => {
                     self.omnipaxos.handle_incoming(m);
                     self.handle_decided_entries();
                 }
                 ClusterMessage::LeaderStartSignal(start_time) => {
-                    debug!("Received start message from peer {from}");
+                    debug!("S{}: Received start message from peer {from}", self.id);
                     received_start_signal = true;
                     self.send_client_start_signals(start_time);
                 }
-                ClusterMessage::Disconnect() =>{
-                    debug!("Received disconnect message from peer {from}");
-                    self.disconnect_node();
+                ClusterMessage::KillLink() =>{
+                    debug!("S{}: Received kill link message from peer {from}", self.id);
+                    self.kill_link(from);
                 }
-                ClusterMessage::KillLink(to) =>{
-                    debug!("Received kill link message from peer {from}");
-                    self.kill_link(to);
+                ClusterMessage::ConnectLink() =>{
+                    debug!("S{}: Received connect link message from peer {from}", self.id);
+                    self.connect_link(from);
                 }
             }
         }
@@ -230,14 +226,28 @@ impl OmniPaxosServer {
 
     
     fn disconnect_node(&mut self) {
+        for peer in &self.peers {
+            self.network.send_to_cluster(*peer, ClusterMessage::KillLink());
+        }
         self.network.disconnect();
         debug!("Node {} disconnected", self.id);
-    }
-
+    } 
     fn kill_link(&mut self, to: NodeId) {
         self.network.kill_link(to, self.id);
-        self.network.kill_link( self.id, to);
-        debug!("Link {}<->{} killed", self.id, to);
+        debug!("Link {}->{} killed", self.id, to);
+    }
+
+    fn connect_link(&mut self, to: NodeId) {
+        self.network.connect_link(to, self.id);
+        debug!("Link {}->{} connected", self.id, to);
+    }
+
+    fn connect_node(&mut self) {
+        self.network.connect();
+        for peer in &self.peers {
+            self.network.send_to_cluster(*peer, ClusterMessage::ConnectLink());
+        }
+        debug!("Node {} connected", self.id);
     }
     
     fn send_cluster_start_signals(&mut self, start_time: Timestamp) {
