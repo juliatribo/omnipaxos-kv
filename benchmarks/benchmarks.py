@@ -105,28 +105,29 @@ def different_workloads(workload:int) -> list[RequestInterval]:
         RequestInterval(duration_sec=5, requests_per_sec=40, read_ratio=0),
         RequestInterval(duration_sec=5, requests_per_sec=40, read_ratio=0),
     ]
-    workloads = [workload_worldcup, workload_eecs, workload_eccs_above_the_clouds, workload_ebates, workload_michael_jackson]
+    high_load = [RequestInterval(duration_sec=40, requests_per_sec=10000, read_ratio=0)]
+    workloads = [workload_worldcup, workload_eecs, workload_eccs_above_the_clouds, workload_ebates, workload_michael_jackson, high_load]
     return workloads[workload]
 
 
 def example_benchmark():
     # Define workload and cluster
     # # workload = example_workload()
-    workload = different_workloads(0)
+    workload = different_workloads(5)
 
     cluster = (
         OmnipaxosClusterBuilder(1)
         .initial_leader(5)
-        .server(1, "us-west2-a")
-        .server(2, "us-south1-a")
-        .server(3, "us-east4-a")
-        .server(4, "europe-southwest1-a")
-        .server(5, "europe-west4-a")
-        .client(1, "us-west2-a", requests=workload)
-        .client(2, "us-south1-a", requests=workload)
-        .client(3, "us-east4-a", requests=workload)
-        .client(4, "europe-southwest1-a", requests=workload)
-        .client(5, "europe-west4-a", requests=workload)
+        .server(1, "us-central1")
+        .server(2, "us-central1")
+        .server(3, "us-central1")
+        .server(4, "us-central1")
+        .server(5, "us-central1")
+        .client(1, "us-central1", requests=workload)
+        .client(2, "us-central1", requests=workload)
+        .client(3, "us-central1", requests=workload)
+        .client(4, "us-central1", requests=workload)
+        .client(5, "us-central1", requests=workload)
     ).build()
     experiment_log_dir = Path(f"./logs/example-experiment")
 

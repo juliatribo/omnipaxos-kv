@@ -12,7 +12,7 @@ read_ratio = 0
 
 [[requests]]
 duration_sec = 45
-requests_per_sec = 100
+requests_per_sec = 1000
 read_ratio = 0
 
 [[kill_links_requests]]

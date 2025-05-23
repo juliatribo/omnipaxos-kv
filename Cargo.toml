@@ -12,8 +12,10 @@ futures = "0.3.30"
 tokio = { version = "1.35.1", features = ["full"] }
 tokio-serde = { version = "0.8.0", features = ["bincode"] }
 tokio-util = { version = "0.7.10", features = ["codec"] }
-omnipaxos = { path = "/Users/juliatribocabre/Desktop/KTH/Thesis/repos/ithaca-1/omnipaxos" }
-omnipaxos_storage = { path = "/Users/juliatribocabre/Desktop/KTH/Thesis/repos/ithaca-1/omnipaxos_storage" }
+omnipaxos = { path = "/Users/juliatribocabre/Desktop/KTH/Thesis/repos/ithaca-1/omnipaxos", features = ["logging"]}
+omnipaxos_storage = { path = "/Users/juliatribocabre/Desktop/KTH/Thesis/repos/ithaca-1/omnipaxos_storage"}
+#omnipaxos = { git = "https://github.com/haraldng/ithaca.git", features = ["logging"] }
+#omnipaxos_storage = { git = "https://github.com/haraldng/ithaca.git" }
 chrono = "0.4.34"
 rand = "0.8.5"
 csv = "1.3.1"

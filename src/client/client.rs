@@ -6,7 +6,7 @@ use rand::Rng;
 use std::time::Duration;
 use tokio::time::interval;
 
-const NETWORK_BATCH_SIZE: usize = 100;
+const NETWORK_BATCH_SIZE: usize = 1;
 
 pub struct Client {
     id: ClientId,
@@ -226,8 +226,10 @@ impl Client {
 
     async fn send_request(&mut self, is_write: bool) {
         let key = self.next_request_id.to_string();
+        let mut rng = rand::thread_rng();
+        let val = rng.gen::<u64>().to_string();
         let cmd = match is_write {
-            true => KVCommand::Put(key.clone(), key),
+            true => KVCommand::Put(key.clone(), val),
             false => KVCommand::Get(key),
         };
         let request = ClientMessage::Append(self.next_request_id, cmd);

@@ -24,6 +24,7 @@ pub struct LocalConfig {
     pub listen_port: u16,
     pub num_clients: usize,
     pub output_filepath: String,
+    //pub size_buffer_data_ids: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -43,6 +44,7 @@ impl Into<OmniPaxosConfig> for OmniPaxosKVConfig {
         };
         let server_config = OmnipaxosServerConfig {
             pid: self.local.server_id,
+            //size_buffer_data_ids: self.local.size_buffer_data_ids,
             ..Default::default()
         };
         OmniPaxosConfig {

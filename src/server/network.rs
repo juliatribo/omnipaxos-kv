@@ -1,5 +1,6 @@
 use futures::{SinkExt, StreamExt};
 use log::*;
+use omnipaxos::{messages::{leader_election::{HBRequest, IthacaElectionMessage}, sequence_paxos::MessageAction}, OmniPaxos};
 use omnipaxos_kv::common::{
     kv::{ClientId, NodeId},
     messages::*,
@@ -261,6 +262,23 @@ impl Network {
         }
     }
 
+    pub fn send_le_to_cluster(&mut self, to: NodeId, msg: ClusterMessage) {
+        match self.cluster_id_to_idx(to) {
+            Some(idx) => match &mut self.peer_connections[idx] {
+                Some(ref mut connection) => {
+                    if connection.is_active {
+                        if let Err(err) = connection.send_le(msg) {
+                            warn!("Couldn't send le msg to peer {to}: {err}");
+                            self.peer_connections[idx] = None;
+                        }
+                    }
+                }
+                None => warn!("Not connected to node {to}"),
+            },
+            None => error!("Sending to unexpected node {to}"),
+        }
+    }
+
     pub fn send_to_client(&mut self, to: ClientId, msg: ServerMessage) {
         match self.client_connections.get_mut(&to) {
             Some(connection) => {
@@ -356,6 +374,7 @@ struct PeerConnection {
     reader_task: JoinHandle<()>,
     writer_task: JoinHandle<()>,
     outgoing_messages: UnboundedSender<ClusterMessage>,
+    le_messages: UnboundedSender<ClusterMessage>,
     is_active: bool,
 }
 
@@ -386,18 +405,41 @@ impl PeerConnection {
             }
         });
         // Writer Actor
-        let (message_tx, mut message_rx) = mpsc::unbounded_channel();
+        let (message_tx, mut message_rx): (mpsc::UnboundedSender<ClusterMessage>, mpsc::UnboundedReceiver<ClusterMessage>) = mpsc::unbounded_channel();
+        let (le_tx, mut le_rx) = mpsc::unbounded_channel();
         let writer_task = tokio::spawn(async move {
+            let mut le_buffer = Vec::with_capacity(batch_size);
             let mut buffer = Vec::with_capacity(batch_size);
-            while message_rx.recv_many(&mut buffer, batch_size).await != 0 {
-                for msg in buffer.drain(..) {
-                    if let Err(err) = writer.feed(msg).await {
-                        error!("Couldn't send message to node {peer_id}: {err}");
-                        break;
+            loop {
+                tokio::select! {
+                    _ = le_rx.recv_many(&mut le_buffer, batch_size), if !le_rx.is_closed() => {
+                        for msg in le_buffer.drain(..) {
+                            if let Err(err) = writer.feed(msg).await {
+                                error!("Couldn't send LE message to node {peer_id}: {err}");
+                                return;
+                            }
+                        }
+                        if let Err(err) = writer.flush().await {
+                            error!("Couldn't flush LE messages to node {peer_id}: {err}");
+                            return;
+                        }
+                    },
+                    _ = message_rx.recv_many(&mut buffer, batch_size), if !message_rx.is_closed() => {
+                        for msg in buffer.drain(..) {
+                            if let Err(err) = writer.feed(msg.clone()).await {
+                                error!("Couldn't send Paxos message to node {peer_id}: {err}");
+                                return;
+                            }
+                        }
+                        if let Err(err) = writer.flush().await {
+                            error!("Couldn't flush Paxos messages to node {peer_id}: {err}");
+                            return;
+                        }
                     }
                 }
-                if let Err(err) = writer.flush().await {
-                    error!("Couldn't send message to node {peer_id}: {err}");
+        
+                if le_rx.is_closed() && message_rx.is_closed() {
+                    info!("Both LE and Paxos channels closed for node {peer_id}");
                     break;
                 }
             }
@@ -408,6 +450,7 @@ impl PeerConnection {
             reader_task,
             writer_task,
             outgoing_messages: message_tx,
+            le_messages: le_tx,
             is_active: true,
         }
     }
@@ -417,6 +460,10 @@ impl PeerConnection {
         msg: ClusterMessage,
     ) -> Result<(), mpsc::error::SendError<ClusterMessage>> {
         self.outgoing_messages.send(msg)
+    }
+
+    pub fn send_le(&mut self, le_msg:ClusterMessage) -> Result<(), mpsc::error::SendError<ClusterMessage>> {
+        self.le_messages.send(le_msg)
     }
 
     fn close(self) {

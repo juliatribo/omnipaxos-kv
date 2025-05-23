@@ -6,12 +6,14 @@ use omnipaxos::{
 };
 use omnipaxos_kv::common::{kv::*, messages::*, utils::Timestamp};
 use omnipaxos_storage::memory_storage::MemoryStorage;
-use std::{fs::File, io::Write, time::Duration};
+use std::{fs::File, io::Write, time::{Duration, Instant}, mem::size_of_val, thread::sleep};
 
 type OmniPaxosInstance = OmniPaxos<Command, MemoryStorage<Command>>;
 const NETWORK_BATCH_SIZE: usize = 100;
 const LEADER_WAIT: Duration = Duration::from_secs(1);
 const ELECTION_TIMEOUT: Duration = Duration::from_secs(1);
+const BANDWIDTH_LIMIT_BYTES_PER_SEC: usize = 1 * 1024 * 1024;
+const SLEEP_DURATION: Duration = Duration::from_millis(1);
 
 pub struct OmniPaxosServer {
     id: NodeId,
@@ -20,8 +22,10 @@ pub struct OmniPaxosServer {
     omnipaxos: OmniPaxosInstance,
     current_decided_idx: usize,
     omnipaxos_msg_buffer: Vec<Message<Command>>,
+    le_msg_buffer: Vec<Message<Command>>,
     config: OmniPaxosKVConfig,
     peers: Vec<NodeId>,
+    rate_limited: Vec<Instant>,
 }
 
 impl OmniPaxosServer {
@@ -30,6 +34,7 @@ impl OmniPaxosServer {
         let storage: MemoryStorage<Command> = MemoryStorage::default();
         let omnipaxos_config: OmniPaxosConfig = config.clone().into();
         let omnipaxos_msg_buffer = Vec::with_capacity(omnipaxos_config.server_config.buffer_size);
+        let le_msg_buffer = Vec::with_capacity(omnipaxos_config.server_config.buffer_size);
         let omnipaxos = omnipaxos_config.build(storage).unwrap();
         // Waits for client and server network connections to be established
         let network = Network::new(config.clone(), NETWORK_BATCH_SIZE).await;
@@ -40,8 +45,10 @@ impl OmniPaxosServer {
             omnipaxos,
             current_decided_idx: 0,
             omnipaxos_msg_buffer,
+            le_msg_buffer,
             peers: config.get_peers(config.local.server_id),
             config,
+            rate_limited: Vec::with_capacity(10000),
         }
     }
 
@@ -146,11 +153,25 @@ impl OmniPaxosServer {
 
     fn send_outgoing_msgs(&mut self) {
         self.omnipaxos
-            .take_outgoing_messages(&mut self.omnipaxos_msg_buffer);
+            .take_outgoing_messages(&mut self.omnipaxos_msg_buffer, &mut self.le_msg_buffer);
+        //let mut bytes_sent: usize = 0;
+        for msg in self.le_msg_buffer.drain(..) {
+            let to = msg.get_receiver();
+            let cluster_msg = ClusterMessage::OmniPaxosMessage(msg);
+            self.network.send_le_to_cluster(to, cluster_msg);
+        }
         for msg in self.omnipaxos_msg_buffer.drain(..) {
+            /*let msg_size = size_of_val(&msg);
+            if bytes_sent + msg_size > BANDWIDTH_LIMIT_BYTES_PER_SEC {
+                self.rate_limited.push(Instant::now());
+                info!("S{}: Rate limit reached nº {:?}", self.id, self.rate_limited.len());
+                sleep(SLEEP_DURATION);
+                bytes_sent = 0;
+            }*/
             let to = msg.get_receiver();
             let cluster_msg = ClusterMessage::OmniPaxosMessage(msg);
             self.network.send_to_cluster(to, cluster_msg);
+            //bytes_sent += msg_size;
         }
     }
 
@@ -226,9 +247,7 @@ impl OmniPaxosServer {
 
     
     fn disconnect_node(&mut self) {
-        for peer in &self.peers {
-            self.network.send_to_cluster(*peer, ClusterMessage::KillLink());
-        }
+        self.send_kill_links();
         self.network.disconnect();
         debug!("Node {} disconnected", self.id);
     } 
@@ -245,7 +264,7 @@ impl OmniPaxosServer {
     fn connect_node(&mut self) {
         self.network.connect();
         for peer in &self.peers {
-            self.network.send_to_cluster(*peer, ClusterMessage::ConnectLink());
+            self.network.send_le_to_cluster(*peer, ClusterMessage::ConnectLink());
         }
         debug!("Node {} connected", self.id);
     }
@@ -254,7 +273,14 @@ impl OmniPaxosServer {
         for peer in &self.peers {
             debug!("Sending start message to peer {peer}");
             let msg = ClusterMessage::LeaderStartSignal(start_time);
-            self.network.send_to_cluster(*peer, msg);
+            self.network.send_le_to_cluster(*peer, msg);
+        }
+    }
+
+    fn send_kill_links(&mut self) {
+        for peer in &self.peers {
+            let msg = ClusterMessage::KillLink();
+            self.network.send_le_to_cluster(*peer, msg);
         }
     }
 
